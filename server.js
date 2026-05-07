@@ -27,7 +27,7 @@ app.use(express.static(path.join(__dirname, "public")));
 const users = [
   {
     username: "student1",
-    passwordHash: "$2b$10$z3bb1ykGs94VfWp4a9IGQuG59FeaebcVCno6fgyUuvL8rphAqB.by"
+    passwordHash: "$2b$10$dbt22jUoICWjNzjyv6Mw6O3juljiU664xb1.ktFBnf46tQI9rcx.W"
   }
 ];
 
@@ -41,10 +41,14 @@ app.get("/", (req, res) => {
 
 app.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    let { username, password } = req.body;
+
+    // Sanitize and trim inputs to prevent common login failures
+    username = (username || "").trim();
+    password = (password || "").trim();
 
     if (
-      typeof username !== "string" ||
+      !username ||
       typeof password !== "string" ||
       !isSafeInput(username) ||
       !isSafeInput(password)
@@ -55,8 +59,11 @@ app.post("/login", async (req, res) => {
       });
     }
 
-    const user = users.find((u) => u.username === username);
+    // Case-insensitive lookup for better user experience
+    const user = users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+
     if (!user) {
+      console.log(`Login attempt failed: User "${username}" not found.`);
       return res.status(401).json({
         success: false,
         message: "Invalid username or password."
@@ -65,6 +72,7 @@ app.post("/login", async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
+      console.log(`Login attempt failed: Incorrect password for "${username}".`);
       return res.status(401).json({
         success: false,
         message: "Invalid username or password."
